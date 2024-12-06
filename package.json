@@ -1,0 +1,20 @@
+{
+  "name": "danfoss_easyselect",
+  "version": "1.0.0",
+  "description": "This is a project for Danfoss. The will help user to select Danfoss drives easily by chatting with the helpful AI assistant.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "mysql2": "^3.11.4",
+    "openai": "^4.73.1"
+  }
+}

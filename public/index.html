@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danfoss EasySelect</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #D8D8D9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 600px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            height: 80%;
+        }
+
+        .chat-header {
+            padding: 10px 15px;
+            background-color: #E2000F;
+            color: white;
+            font-size: 1.2em;
+            font-weight: bold;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            border-top: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 10px;
+            gap: 10px;
+            background-color: #f1f1f1;
+            border-radius: 0 0 8px 8px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .chat-input button {
+            background-color: #E2000F;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .chat-input button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .message {
+            margin: 10px 0;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.user .text {
+            background-color: #484848;
+            color: white;
+            text-align: right;
+        }
+
+        .message.assistant .text {
+            background-color: #f1f1f1;
+            color: black;
+        }
+
+        .message .text {
+            max-width: 70%;
+            padding: 10px;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">Danfoss EasySelect - AI assistant</div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input">
+            <input type="text" id="userInput" placeholder="Type your message here..." />
+            <button id="sendButton" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const backendUrl = "http://localhost:3000/chat"; // Replace with your backend URL
+
+        // Generate or retrieve a unique userId
+        let userId = localStorage.getItem('userId');
+        if (!userId) {
+            userId = `user_${Date.now()}`;
+            localStorage.setItem('userId', userId);
+        }
+
+        const chatMessages = document.getElementById('chatMessages');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+
+        // Append a message to the chat window
+        function appendMessage(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            const textDiv = document.createElement('div');
+            textDiv.className = 'text';
+            textDiv.innerText = content;
+            messageDiv.appendChild(textDiv);
+            chatMessages.appendChild(messageDiv);
+
+            // Limit chat history to 50 messages
+            const maxMessages = 50;
+            while (chatMessages.children.length > maxMessages) {
+                chatMessages.removeChild(chatMessages.firstChild);
+            }
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Send a message to the backend
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) {
+                userInput.style.borderColor = 'red'; // Highlight the input field for empty messages
+                return;
+            }
+
+            // Reset the input field and display user's message
+            userInput.style.borderColor = '';
+            appendMessage('user', message);
+            userInput.value = '';
+            userInput.disabled = true;
+            sendButton.disabled = true;
+
+            // Show "Typing..." indicator
+            appendMessage('assistant', 'Typing...');
+
+            try {
+                const response = await fetch(backendUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, message }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const assistantReply = data.reply;
+
+                    // Handle special cases from backend responses
+                    if (assistantReply.toLowerCase().includes("no matching products found")) {
+                        appendMessage(
+                            'assistant',
+                            `${assistantReply} Could you provide more details about the industry, application, voltage, or power requirements?`
+                        );
+                    } else {
+                        document.querySelector('.message.assistant:last-child .text').innerText = assistantReply;
+                    }
+                } else {
+                    document.querySelector('.message.assistant:last-child .text').innerText =
+                        'Error: Unable to fetch response from server.';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.querySelector('.message.assistant:last-child .text').innerText =
+                    'Error: Something went wrong. Please try again later.';
+            } finally {
+                userInput.disabled = false;
+                sendButton.disabled = false;
+            }
+        }
+
+        // Allow pressing Enter to send a message
+        userInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
