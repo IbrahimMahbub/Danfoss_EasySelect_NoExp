@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Danfoss EasySelect</title>
+    <title>Danfoss EasySelect - AI assistant</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -14,6 +15,11 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+        }
+
+        p {
+            padding: 0px;
+            margin: 0px;
         }
 
         .chat-container {
@@ -40,7 +46,7 @@
         .chat-messages {
             flex: 1;
             padding: 10px;
-            overflow-y: auto;
+            overflow-y: scroll;
             border-top: 1px solid #ddd;
             border-bottom: 1px solid #ddd;
         }
@@ -100,6 +106,12 @@
             padding: 10px;
             border-radius: 12px;
         }
+
+        .typing-indicator {
+            font-style: italic;
+            color: gray;
+            margin: 5px 0;
+        }
     </style>
 </head>
 <body>
@@ -113,94 +125,131 @@
     </div>
 
     <script>
+        const chatMessages = document.getElementById("chatMessages");
+        const userInput = document.getElementById("userInput");
+        const sendButton = document.getElementById("sendButton");
+
         const backendUrl = "http://localhost:3000/chat"; // Replace with your backend URL
 
-        // Generate or retrieve a unique userId
-        let userId = localStorage.getItem('userId');
-        if (!userId) {
-            userId = `user_${Date.now()}`;
-            localStorage.setItem('userId', userId);
-        }
-
-        const chatMessages = document.getElementById('chatMessages');
-        const userInput = document.getElementById('userInput');
-        const sendButton = document.getElementById('sendButton');
-
-        // Append a message to the chat window
+        // Add a message to the chat
         function appendMessage(role, content) {
-            const messageDiv = document.createElement('div');
+            const messageDiv = document.createElement("div");
             messageDiv.className = `message ${role}`;
-            const textDiv = document.createElement('div');
-            textDiv.className = 'text';
-            textDiv.innerText = content;
-            messageDiv.appendChild(textDiv);
-            chatMessages.appendChild(messageDiv);
+            const textDiv = document.createElement("div");
+            textDiv.className = "text";
 
-            // Limit chat history to 50 messages
-            const maxMessages = 50;
-            while (chatMessages.children.length > maxMessages) {
-                chatMessages.removeChild(chatMessages.firstChild);
+            // Parse Markdown for assistant responses
+            if (role === "assistant") {
+                textDiv.innerHTML = marked.parse(content);
+            } else {
+                textDiv.innerText = content; // Plain text for user messages
             }
 
+            messageDiv.appendChild(textDiv);
+            chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // Send a message to the backend
-        async function sendMessage() {
-            const message = userInput.value.trim();
-            if (!message) {
-                userInput.style.borderColor = 'red'; // Highlight the input field for empty messages
-                return;
-            }
+        // Show typing indicator
+        function showTypingIndicator() {
+            const typingIndicator = document.createElement("div");
+            typingIndicator.className = "typing-indicator";
+            typingIndicator.innerText = "Typing...";
+            typingIndicator.id = "typingIndicator";
+            chatMessages.appendChild(typingIndicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
 
-            // Reset the input field and display user's message
-            userInput.style.borderColor = '';
-            appendMessage('user', message);
-            userInput.value = '';
-            userInput.disabled = true;
-            sendButton.disabled = true;
+        // Clear typing indicator
+        function clearTypingIndicator() {
+            const typingIndicator = document.getElementById("typingIndicator");
+            if (typingIndicator) typingIndicator.remove();
+        }
 
-            // Show "Typing..." indicator
-            appendMessage('assistant', 'Typing...');
-
+        // Automatically send a greeting request to the backend when the page loads
+        async function sendInitialGreeting() {
             try {
                 const response = await fetch(backendUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, message }),
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ userId: "12345", message: "" }), // Empty message to trigger the greeting
                 });
 
                 if (response.ok) {
                     const data = await response.json();
-                    const assistantReply = data.reply;
-
-                    // Handle special cases from backend responses
-                    if (assistantReply.toLowerCase().includes("no matching products found")) {
-                        appendMessage(
-                            'assistant',
-                            `${assistantReply} Could you provide more details about the industry, application, voltage, or power requirements?`
-                        );
-                    } else {
-                        document.querySelector('.message.assistant:last-child .text').innerText = assistantReply;
-                    }
+                    appendMessage("assistant", data.reply);
                 } else {
-                    document.querySelector('.message.assistant:last-child .text').innerText =
-                        'Error: Unable to fetch response from server.';
+                    appendMessage(
+                        "assistant",
+                        "Error: Unable to fetch greeting from the server."
+                    );
                 }
             } catch (error) {
-                console.error('Error:', error);
-                document.querySelector('.message.assistant:last-child .text').innerText =
-                    'Error: Something went wrong. Please try again later.';
+                console.error("Error:", error);
+                appendMessage(
+                    "assistant",
+                    "Error: Something went wrong while fetching the greeting."
+                );
+            }
+        }
+
+        // Send a message
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Display user's message
+            appendMessage("user", message);
+
+            // Clear input field and disable UI
+            userInput.value = "";
+            userInput.disabled = true;
+            sendButton.disabled = true;
+
+            // Show typing indicator
+            showTypingIndicator();
+
+            try {
+                const response = await fetch(backendUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ userId: "12345", message }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    clearTypingIndicator();
+                    appendMessage("assistant", data.reply);
+                } else {
+                    clearTypingIndicator();
+                    appendMessage(
+                        "assistant",
+                        "Error: Unable to fetch response from server."
+                    );
+                }
+            } catch (error) {
+                clearTypingIndicator();
+                appendMessage(
+                    "assistant",
+                    "Error: Something went wrong. Please try again later."
+                );
             } finally {
                 userInput.disabled = false;
                 sendButton.disabled = false;
             }
         }
 
-        // Allow pressing Enter to send a message
-        userInput.addEventListener('keypress', (event) => {
-            if (event.key === 'Enter') sendMessage();
+        // Allow pressing Enter to send message
+        userInput.addEventListener("keypress", (event) => {
+            if (event.key === "Enter") sendMessage();
         });
+
+        // Trigger initial greeting on page load
+        document.addEventListener("DOMContentLoaded", sendInitialGreeting);
     </script>
 </body>
 </html>
