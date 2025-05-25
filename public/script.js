@@ -113,6 +113,7 @@ async function sendMessage() {
     } finally {
         userInput.disabled = false;
         sendButton.disabled = false;
+        userInput.focus();
     }
 }
 
@@ -122,4 +123,8 @@ userInput.addEventListener("keypress", (event) => {
 });
 
 // Trigger initial greeting on page load
-document.addEventListener("DOMContentLoaded", sendInitialGreeting);
+// document.addEventListener("DOMContentLoaded", sendInitialGreeting);
+document.addEventListener("DOMContentLoaded", () => {
+    sendInitialGreeting();
+    userInput.focus(); // Focus input on page load
+});
