@@ -2,7 +2,7 @@ const chatMessages = document.getElementById("chatMessages");
 const userInput = document.getElementById("userInput");
 const sendButton = document.getElementById("sendButton");
 
-const backendUrl = "http://localhost:3000/chat"; // Replace with your backend URL
+const backendUrl = "http://localhost:3001/chat"; // Replace with your backend URL
 
 // Add a message to the chat
 function appendMessage(role, content) {
